@@ -2230,10 +2230,25 @@ function poseA(a, d, temps) {
   let t = (temps - d.decalage * a.dureePose) % total;
   if (t < 0) t += total;
   const i = Math.floor(t / a.dureePose) % n;
-  const prec = (i - 1 + n) % n;
   const u = (t - i * a.dureePose) / a.dureePose;
-  const av = Math.min(u / 0.55, 1);
-  return melange(d.poses[prec], d.poses[i], av * av * (3 - 2 * av));
+  // Mouvement continu et fluide : une courbe douce passe par toutes les poses sans s'y arrêter
+  return courbe(d.poses[(i - 2 + 2 * n) % n], d.poses[(i - 1 + n) % n], d.poses[i], d.poses[(i + 1) % n], u);
+}
+
+function courbe(A, B, Cc, Dd, u) {
+  const u2 = u * u, u3 = u2 * u;
+  const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+  const r = {};
+  for (const k of CLES_POSE) {
+    const p0 = A[k], p1 = B[k], p2 = Cc[k], p3 = Dd[k];
+    const d0 = p1 - p0, d1 = p2 - p1, d2 = p3 - p2;
+    let m1 = d0 * d1 <= 0 ? 0 : (d0 + d1) / 2;
+    let m2 = d1 * d2 <= 0 ? 0 : (d1 + d2) / 2;
+    m1 = d1 >= 0 ? Math.min(m1, 3 * d1) : Math.max(m1, 3 * d1);
+    m2 = d1 >= 0 ? Math.min(m2, 3 * d1) : Math.max(m2, 3 * d1);
+    r[k] = h00 * p1 + h10 * m1 + h01 * p2 + h11 * m2;
+  }
+  return r;
 }
 
 function indexPose(a, temps) {
@@ -2241,7 +2256,7 @@ function indexPose(a, temps) {
   let t = temps % total; if (t < 0) t += total;
   return Math.floor(t / a.dureePose) % n;
 }
-const tempsPose = (a, i) => (i + 0.9) * a.dureePose;
+const tempsPose = (a, i) => (i + 0.999) * a.dureePose;
 
 function dir(angle) { const r = angle * Math.PI / 180; return { x: Math.sin(r), y: Math.cos(r) }; }
 function plus(p, d, l) { return { x: p.x + d.x * l, y: p.y + d.y * l }; }
